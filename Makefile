@@ -17,5 +17,5 @@ install:
 	sed -i 's/VERSION=".*"/VERSION=$(VERSION)/' \
 	  $(DESTDIR)$(PREFIX)/bin/tumbleweed
 
-	$(INSTALL) -d $(DESTDIR)$(SYSCONFIG)/bash_completion/completions
-	$(INSTALL) tumbleweed-completion.bash $(DESTDIR)$(SYSCONFIG)/bash_completion/completions
+	$(INSTALL) -d $(DESTDIR)$(SYSCONFIG)/bash-completion/completions
+	$(INSTALL) tumbleweed-completion.bash $(DESTDIR)$(SYSCONFIG)/bash-completion/completions
