@@ -4,7 +4,7 @@ INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
 
 PREFIX = /usr
-SYSCONFIG = $PREFIX/lib
+SYSCONFIG = $(PREFIX)/share
 VERSION="build-$(shell date +%F)"
 
 all:
