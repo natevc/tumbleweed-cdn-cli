@@ -3,10 +3,15 @@
 VERSION="development"
 URL_PRE_MIGRATE="http://download.tumbleweed.boombatower.com"
 URL_POST_MIGRATE="http://cdn.opensuse.org/history"
-CONFIG_DIR="/etc/zypp"
-VARS_DIR="$CONFIG_DIR/vars.d"
+ZYPP_CONFIG_DIR="/etc/zypp"
+ZYPP_VARS_DIR="$ZYPP_CONFIG_DIR/vars.d"
+DNF_CONFIG_DIR="/etc/dnf"
+DNF_VARS_DIR="$DNF_CONFIG_DIR/vars"
 VAR_NAME="snapshotVersion"
-VAR_FILE="$VARS_DIR/$VAR_NAME"
+ZYPP_VAR_PATH="$ZYPP_VARS_DIR/$VAR_NAME"
+# resolves https://github.com/boombatower/tumbleweed-cli/issues/23
+DNF_VAR_LINK="$DNF_VARS_DIR/$VAR_NAME"
+
 SNAPSHOT_HISTORY="$VARS_DIR/.snapshotVersion.history"
 REPOS_DIR="/etc/zypp/repos.d"
 # REPO_PATTERN="https?://cdn.opensuse.org/(?:[^u][^/]+/)?tumbleweed/[^$]+"
@@ -22,6 +27,15 @@ tumbleweed_sudo()
   fi
 }
 
+dnf_dir_exists()
+{
+  if [[ -d "$DNF_VARS_DIR" || ! -e "$DNF_VAR_LINK" ]]; then
+    return 0
+  fi
+  return 1
+}
+
+
 tumbleweed_inited()
 {
   if [ -f "$VAR_FILE" ] ; then
@@ -32,6 +46,10 @@ tumbleweed_inited()
 
 tumbleweed_init()
 {
+  if [[ -d "$DNF_VARS_DIR" && ! -e "$DNF_VAR_LINK" ]]; then
+    echo Creating link:
+    ln -vs "$ZYPP_VAR_PATH" "$DNF_VAR_LINK"
+  fi
   if tumbleweed_inited && [ "$force" != "1" ] ; then
     echo "already initialized"
     return
@@ -47,9 +65,9 @@ tumbleweed_variable()
 {
   if [ $# -eq 1 ] ; then
     local version="$1"
-    echo "$version" | sudo tee "$VAR_FILE" > /dev/null
+    echo "$version" | sudo tee "$ZYPP_VAR_PATH" > /dev/null
     if [ $? -ne 0 ] ; then
-      echo "failed to set version to $version in $VARS_DIR/$VAR_NAME"
+      echo "failed to set version to $version in $ZYPP_VAR_PATH"
       exit 1
     fi
     tumbleweed_history "$version"
@@ -191,6 +209,10 @@ tumbleweed_revert()
 
 tumbleweed_uninit()
 {
+  if [[ -L "$DNF_VAR_LINK" && "$(readlink "$DNF_VAR_LINK")" == "$ZYPP_VAR_PATH" ]]; then
+    echo Removing link: "$DNF_VAR_LINK" '->' "$ZYPP_VAR_PATH"
+    rm -v "$DNF_VAR_LINK"
+  fi
   if [ ! -d "$REPOS_DIR/.previous" ] ; then
     echo "nothing to revert"
     exit 1
