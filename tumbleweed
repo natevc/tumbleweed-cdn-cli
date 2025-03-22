@@ -1,5 +1,11 @@
 #!/usr/bin/env bash
 
+if ! [ -z "$DEBUG" ]; then
+  export PS4='Line ${LINENO}: BASH_LINENO: ${BASH_LINENO[*]}": '
+  set -x
+fi
+
+
 VERSION="development"
 URL_PRE_MIGRATE="http://download.opensuse.org/history"
 URL_POST_MIGRATE="http://cdn.opensuse.org/history"
@@ -336,11 +342,12 @@ _EOF_
 command=""
 
 try_update_command(){
-if [ "$command" != "" ]; then
-  echo "ERROR: Got second command '$command' when processing '$1'!"
-  echo "Run multiple commands separately!"
-  exit 1
-fi
+  if [ "$command" != "" ]; then
+    echo "ERROR: Got second command '$command' when processing '$1'!"
+    echo "Run multiple commands separately!"
+    exit 1
+  fi
+  command="$1"
 }
 
 tumbleweed_handle()
@@ -378,7 +385,7 @@ while tumbleweed_handle $1 ; do
   shift
 done
 
-if [ "$command" == "" ]; then
+if [ -z "$command" ]; then
   command="usage"
 fi
 
