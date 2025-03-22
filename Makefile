@@ -4,7 +4,7 @@ INSTALL = install
 INSTALL_PROGRAM = $(INSTALL)
 
 PREFIX = /usr
-SYSCONFIG = /etc
+SYSCONFIG = $PREFIX/lib
 VERSION="build-$(shell date +%F)"
 
 all:
@@ -17,5 +17,5 @@ install:
 	sed -i 's/VERSION=".*"/VERSION=$(VERSION)/' \
 	  $(DESTDIR)$(PREFIX)/bin/tumbleweed
 
-	$(INSTALL) -d $(DESTDIR)$(SYSCONFIG)/bash_completion.d
-	$(INSTALL) tumbleweed-completion.bash $(DESTDIR)$(SYSCONFIG)/bash_completion.d
+	$(INSTALL) -d $(DESTDIR)$(SYSCONFIG)/bash_completion/completions
+	$(INSTALL) tumbleweed-completion.bash $(DESTDIR)$(SYSCONFIG)/bash_completion/completions
