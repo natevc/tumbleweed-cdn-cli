@@ -344,7 +344,9 @@ command=""
 try_update_command(){
   if [ "$command" != "" ]; then
     echo "ERROR: Got second command '$command' when processing '$1'!"
-    echo "Run multiple commands separately!"
+    echo "Run multiple commands separately, e.g."
+    echo -e "\t$0 $1"
+    echo -e "\t$0 $command"
     exit 1
   fi
   command="$1"
@@ -369,7 +371,11 @@ tumbleweed_handle()
     -*) echo "unknown option $1" ; exit 1 ; ;;
     *)
       if [ $args_expected -eq 0 ] ; then
-        return 1
+        if [ -z "$1" ]; then
+          return 1
+        fi
+        echo "Unexpected argument $1"
+        exit 1
       fi
       args+=("$1")
       ((args_expected--))
