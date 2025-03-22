@@ -323,7 +323,7 @@ Options:
 -h, --help            Display this message and exit
 
 Commands:
-init                  Initialize repos to point to snapshot repos.
+init                  Initialize repos to point to snapshot repos. If DNF is installed, also enables DNF support.
 status                Show status information (latest, target, and installed).
 latest                Show latest snapshot available.
 installed|version     Show current installed snapshot.
