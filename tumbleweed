@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 VERSION="development"
-URL_PRE_MIGRATE="http://download.tumbleweed.boombatower.com"
+URL_PRE_MIGRATE="http://download.opensuse.org/history"
 URL_POST_MIGRATE="http://cdn.opensuse.org/history"
 ZYPP_CONFIG_DIR="/etc/zypp"
 ZYPP_VARS_DIR="$ZYPP_CONFIG_DIR/vars.d"
@@ -16,7 +16,7 @@ SNAPSHOT_HISTORY="$VARS_DIR/.snapshotVersion.history"
 REPOS_DIR="/etc/zypp/repos.d"
 # REPO_PATTERN="https?://cdn.opensuse.org/(?:[^u][^/]+/)?tumbleweed/[^$]+"
 # Disable matching debug and source URLs for the time being.
-REPO_PATTERN="https?://cdn.opensuse.org/tumbleweed/[^$]+"
+REPO_PATTERN="https?://(?:cdn)|(?:download).opensuse.org/tumbleweed/[^$]+"
 
 tumbleweed_sudo()
 {
@@ -27,18 +27,10 @@ tumbleweed_sudo()
   fi
 }
 
-dnf_dir_exists()
-{
-  if [[ -d "$DNF_VARS_DIR" || ! -e "$DNF_VAR_LINK" ]]; then
-    return 0
-  fi
-  return 1
-}
-
 
 tumbleweed_inited()
 {
-  if [ -f "$VAR_FILE" ] ; then
+  if [ -f "$ZYPP_VAR_PATH" ] ; then
     return 0
   fi
   return 1
@@ -72,7 +64,7 @@ tumbleweed_variable()
     fi
     tumbleweed_history "$version"
   else
-    cat "$VAR_FILE"
+    cat "$ZYPP_VAR_PATH"
   fi
 }
 
@@ -172,7 +164,7 @@ tumbleweed_switch()
     local version="$1"
     if ! tumbleweed_list | grep -Fx "$version" > /dev/null ; then
       echo "invalid version $version, not in available list"
-      return
+      return 1
     fi
   else
     local version="$(tumbleweed_latest)"
@@ -225,7 +217,7 @@ tumbleweed_uninit()
   tumbleweed_sudo
   sudo mv "$REPOS_DIR/.previous"/* $REPOS_DIR/
   sudo rm -r "$REPOS_DIR/.previous"
-  sudo rm "$VAR_FILE"
+  sudo rm "$ZYPP_VAR_PATH"
 }
 
 tumbleweed_install()
@@ -244,13 +236,13 @@ tumbleweed_migrate_check()
     URL="$URL_POST_MIGRATE"
   fi
 
-  # Issue notice of official hosting and migration if target is available.
-  if [ $MIGRATED -eq 0 ] && \
-    curl --fail --silent -L "$URL_POST_MIGRATE/list" | grep -Fx "$(tumbleweed_target)" > /dev/null ; then
-    echo "NOTICE: Official snapshot hosting is now available. The unofficial hosting is" >&2
-    echo "        deprecated and will be discontinued at a future date. Consider" >&2
-    echo "        migrating to the official hosting via \`tumbleweed migrate\`." >&2
-  fi
+  # # Issue notice of official hosting and migration if target is available.
+  # if [ $MIGRATED -eq 0 ] && \
+  #   curl --fail --silent -L "$URL_POST_MIGRATE/list" | grep -Fx "$(tumbleweed_target)" > /dev/null ; then
+  #   echo "NOTICE: Official snapshot hosting is now available. The unofficial hosting is" >&2
+  #   echo "        deprecated and will be discontinued at a future date. Consider" >&2
+  #   echo "        migrating to the official hosting via \`tumbleweed migrate\`." >&2
+  # fi
 }
 
 tumbleweed_migrate()
@@ -264,17 +256,17 @@ tumbleweed_migrate()
   echo "which may be restored by invoking the unmigrate command."
   echo
 
-  echo "Be aware that the official hosting snapshot count differs from the"
-  echo "unofficial hosting that you are currently using."
-  echo
+  # echo "Be aware that the official hosting snapshot count differs from the"
+  # echo "unofficial hosting that you are currently using."
+  # echo
 
   local count_pre=$(curl --fail --silent "$URL_PRE_MIGRATE/list" | wc -l)
   local count_post=$(curl --fail --silent -L "$URL_POST_MIGRATE/list" | wc -l)
-  echo "- unofficial, $URL_PRE_MIGRATE: $count_pre snapshots"
-  echo "- official, $URL_POST_MIGRATE: $count_post snapshots"
+  echo "- non-CDN, $URL_PRE_MIGRATE: $count_pre snapshots"
+  echo "- CDN, $URL_POST_MIGRATE: $count_post snapshots"
   echo
 
-  echo "Eventually the unofficial hosting will be phased out."
+  # echo "Eventually the unofficial hosting will be phased out."
   echo
 
   tumbleweed_prompt "Do you wish to continue?"
@@ -336,9 +328,19 @@ update|upgrade        Switch to and install the latest available snapshot.
 switch %version       Switch to a new snapshot (none for latest).
 revert                Revert to the previous snapshot or repo state.
 uninit                Revert back to a snapshotless repository setup.
-migrate               Migrate from boombatower hosting to download.opensuse.org.
-unmigrate             Revert migration to official hosting.
+migrate               Migrate from download.opensuse.org to new cdn.opensuse.org.
+unmigrate             Revert migration to download.opensuse.org.
 _EOF_
+}
+
+command=""
+
+try_update_command(){
+if [ "$command" != "" ]; then
+  echo "ERROR: Got second command '$command' when processing '$1'!"
+  echo "Run multiple commands separately!"
+  exit 1
+fi
 }
 
 tumbleweed_handle()
@@ -349,13 +351,13 @@ tumbleweed_handle()
     --install) install=1 ; ;;
     -h|--help) command="usage" ; ;;
     history|init|installed|latest|list|revert|status|target|uninit|update|migrate|unmigrate)
-      command="$1" ; ;;
+      try_update_command "$1" ; ;;
     version)
-      command="installed" ; ;;
+      try_update_command "installed" ; ;;
     upgrade)
-      command="update" ; ;;
+      try_update_command "update" ; ;;
     switch)
-      command="$1" ; args_expected=1 ;
+      try_update_command "$1" ; args_expected=1 ;
       ;;
     -*) echo "unknown option $1" ; exit 1 ; ;;
     *)
@@ -369,12 +371,16 @@ tumbleweed_handle()
   return 0
 }
 
-command="usage"
+
 args_expected=0
 args=()
 while tumbleweed_handle $1 ; do
   shift
 done
+
+if [ "$command" == "" ]; then
+  command="usage"
+fi
 
 if [ "$command" != "usage" ] && [ "$command" != "init" ] && ! tumbleweed_inited ; then
   echo "repositories have not been initialized for snapshots"
@@ -384,7 +390,13 @@ fi
 
 tumbleweed_migrate_check
 tumbleweed_$command "${args[@]}"
+result=$?
 
-if [ "$install" == "1" ] ; then
+if [ $result != "0" ]; then
+  echo "Command failed with result $result"
+  exit 1
+fi
+
+if [[ "$install" == "1" ]] ; then
   tumbleweed_install
 fi
